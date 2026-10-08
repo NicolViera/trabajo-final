@@ -1,0 +1,29 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+
+import authRoutes from './routes/authRoutes';
+import productRoutes from './routes/productRoutes';
+import orderRoutes from './routes/orderRoutes';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(express.json());
+
+// Rutas de la API
+app.use('/api/users', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+
+app.get('/api', (req, res) => {
+    res.json({ message: 'Chic Rose API (TypeScript) is running!' });
+});
+
+app.listen(PORT, () => {
+    console.log(`\n🌸 Chic Rose API is running on http://localhost:${PORT}`);
+});

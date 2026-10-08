@@ -1,0 +1,79 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../dev.db"
+}
+
+model Product {
+  id          String      @id
+  code        String      @unique
+  title       String
+  description String
+  category    String
+  price       Float
+  stock       Int         @default(0)
+  image       String
+  salesCount  Int         @default(0)
+  createdAt   DateTime    @default(now())
+  orderItems  OrderItem[]
+
+  @@map("productos")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("customer")
+  createdAt DateTime @default(now())
+  orders    Order[]
+
+  @@map("usuarios")
+}
+
+model Order {
+  id            String      @id
+  customerName  String
+  customerEmail String
+  total         Float
+  status        String      @default("Pendiente")
+  address       String
+  date          DateTime    @default(now())
+  items         OrderItem[]
+  user          User?       @relation(fields: [userEmail], references: [email])
+  userEmail     String?
+
+  @@map("ordenes")
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   String
+  productId String
+  title     String
+  price     Float
+  qty       Int
+  size      String
+  color     String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("items_orden")
+}
+
+model SaleDay {
+  id      Int    @id @default(autoincrement())
+  date    String
+  rawDate String @unique
+  revenue Float
+  count   Int
+
+  @@map("ventas_diarias")
+}

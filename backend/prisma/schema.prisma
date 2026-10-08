@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String   @unique
+  contrasena String
+  rol       String   @default("cliente") // "cliente" or "admin"
+  creadoEn  DateTime @default(now())
+  pedidos   Pedido[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id             Int             @id @default(autoincrement())
+  sku            String          @unique
+  titulo         String
+  precio         Float
+  stock          Int             @default(0)
+  urlImagen      String
+  descripcion    String
+  categoriaId    Int
+  categoria      Categoria       @relation(fields: [categoriaId], references: [id])
+  creadoEn       DateTime        @default(now())
+  detallesPedido DetallePedido[]
+
+  @@map("productos")
+}
+
+model Pedido {
+  id             Int             @id @default(autoincrement())
+  numeroPedido   String          @unique
+  nombreCliente  String
+  emailCliente   String
+  direccion      String
+  total          Float
+  estado         String          @default("Preparando")
+  metodoPago     String
+  detallesPago   String
+  usuarioId      Int?
+  usuario        Usuario?        @relation(fields: [usuarioId], references: [id])
+  detalles       DetallePedido[]
+  creadoEn       DateTime        @default(now())
+
+  @@map("pedidos")
+}
+
+model DetallePedido {
+  id         Int      @id @default(autoincrement())
+  pedidoId   Int
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id])
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
+  cantidad   Int
+  precio     Float    // Precio al momento de la compra
+
+  @@map("detalles_pedido")
+}
