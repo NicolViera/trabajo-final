@@ -31,9 +31,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedUser = localStorage.getItem('user');
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } catch {
+        // Datos corruptos en localStorage: se descarta la sesión
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
+
+    // Si el backend responde 401 (token vencido/inválido), se cierra la sesión
+    const onExpired = () => {
+      setUser(null);
+      setToken(null);
+    };
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
   }, []);
 
   const login = (userData: User, newToken: string) => {

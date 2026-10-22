@@ -1,13 +1,10 @@
+import 'dotenv/config'; // debe ir PRIMERO: carga .env antes de leer JWT_SECRET
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
 
 import authRoutes from './routes/authRoutes';
 import productRoutes from './routes/productRoutes';
 import orderRoutes from './routes/orderRoutes';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

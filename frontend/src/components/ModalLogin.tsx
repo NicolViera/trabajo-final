@@ -9,26 +9,49 @@ const AuthModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
   const [contrasena, setContrasena] = useState('');
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
+  const validate = (): string | null => {
+    if (!isLoginTab && nombre.trim().length < 2) return 'El nombre debe tener al menos 2 caracteres';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return 'Ingresá un correo electrónico válido';
+    if (isLoginTab) return contrasena ? null : 'Ingresá tu contraseña';
+    if (contrasena.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
+    if (!/[A-Za-z]/.test(contrasena) || !/\d/.test(contrasena)) return 'La contraseña debe incluir al menos una letra y un número';
+    return null;
+  };
+
+  const switchTab = (login: boolean) => {
+    setIsLoginTab(login);
+    setError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const problem = validate();
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError('');
+    setLoading(true);
 
     try {
       if (isLoginTab) {
-        const { data } = await api.post('/users/login', { email, contrasena });
+        const { data } = await api.post('/users/login', { email: email.trim(), contrasena });
         login(data.user, data.token);
-        onClose();
       } else {
-        await api.post('/users/register', { nombre, email, contrasena });
-        // After register, you might auto-login or ask to login
-        alert('Cuenta creada. Por favor, inicia sesión.');
-        setIsLoginTab(true);
+        // El backend devuelve el token al registrar: se inicia sesión directamente
+        const { data } = await api.post('/users/register', { nombre: nombre.trim(), email: email.trim(), contrasena });
+        login(data.user, data.token);
       }
+      setContrasena('');
+      onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error de autenticación');
+      setError(err.response?.data?.error || 'No se pudo conectar con el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,11 +60,11 @@ const AuthModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
       <div className="modal-container auth-modal-container glass-card">
         <button className="modal-close-btn" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
         <div className="auth-tabs">
-          <button className={`auth-tab-btn ${isLoginTab ? 'active' : ''}`} onClick={() => setIsLoginTab(true)}>Iniciar Sesión</button>
-          <button className={`auth-tab-btn ${!isLoginTab ? 'active' : ''}`} onClick={() => setIsLoginTab(false)}>Registrarse</button>
+          <button className={`auth-tab-btn ${isLoginTab ? 'active' : ''}`} type="button" onClick={() => switchTab(true)}>Iniciar Sesión</button>
+          <button className={`auth-tab-btn ${!isLoginTab ? 'active' : ''}`} type="button" onClick={() => switchTab(false)}>Registrarse</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form active">
+        <form onSubmit={handleSubmit} className="auth-form active" noValidate>
           {!isLoginTab && (
             <div className="form-group">
               <label>Nombre Completo</label>
@@ -54,13 +77,14 @@ const AuthModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           </div>
           <div className="form-group">
             <label>Contraseña</label>
-            <input type="password" value={contrasena} onChange={e => setContrasena(e.target.value)} className="form-control" required />
+            <input type="password" value={contrasena} onChange={e => setContrasena(e.target.value)} className="form-control" required autoComplete={isLoginTab ? 'current-password' : 'new-password'} />
+            {!isLoginTab && <small style={{ opacity: 0.7 }}>Mínimo 8 caracteres, con letras y números.</small>}
           </div>
 
           {error && <div className="text-danger">{error}</div>}
 
-          <button type="submit" className="btn btn-pink btn-block btn-lg" style={{ marginTop: '15px' }}>
-            {isLoginTab ? 'Entrar' : 'Registrarse'}
+          <button type="submit" disabled={loading} className="btn btn-pink btn-block btn-lg" style={{ marginTop: '15px' }}>
+            {loading ? 'Procesando...' : isLoginTab ? 'Entrar' : 'Registrarse'}
           </button>
         </form>
       </div>

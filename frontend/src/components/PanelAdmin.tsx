@@ -63,7 +63,9 @@ const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
   const [dailyData] = useState(generateSalesData);
 
   useEffect(() => {
-    const source = new EventSource('http://localhost:3001/api/orders/stream');
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const source = new EventSource(`http://localhost:3001/api/orders/stream?token=${encodeURIComponent(token)}`);
 
     source.onmessage = (event) => {
       try {
