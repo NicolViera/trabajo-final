@@ -15,6 +15,20 @@ api.interceptors.request.use((config) => {//usa esta funcon para revisar si el u
   return config;
 });
 
+// Token vencido o inválido en una ruta protegida -> cerrar sesión (el login en sí devuelve 401 por credenciales, se excluye)
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const url: string = error.config?.url || '';
+    if (error.response?.status === 401 && !url.includes('/users/login') && localStorage.getItem('token')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.dispatchEvent(new Event('auth:expired'));
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 //esta configurada con la libreria axios  //
 //si hay un token jwt (json web token)en el localstorage(es la base de datos local del navegador)lo agrega a la cabecera http de todas las consultas//

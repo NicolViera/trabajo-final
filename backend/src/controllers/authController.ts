@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/authService';
+import { normalizeEmail, validateEmail, validateName, validatePassword } from '../utils/validators';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { nombre, email, contrasena } = req.body;
+    const { nombre, contrasena } = req.body ?? {};
+    const email = normalizeEmail(req.body?.email);
 
-    if (!nombre || !email || !contrasena) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    const validationError = validateName(nombre) || validateEmail(email) || validatePassword(contrasena);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
     const { usuario, token } = await authService.registerUser(nombre, email, contrasena);
@@ -27,9 +30,10 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, contrasena } = req.body;
+    const { contrasena } = req.body ?? {};
+    const email = normalizeEmail(req.body?.email);
 
-    if (!email || !contrasena) {
+    if (!email || typeof contrasena !== 'string' || !contrasena) {
       return res.status(400).json({ error: 'Correo electrónico y contraseña son obligatorios' });
     }
 

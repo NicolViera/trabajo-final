@@ -1,10 +1,23 @@
 import { Request, Response } from 'express';
-import { orderService } from '../services/orderService';
+import { orderService, OrderError } from '../services/orderService';
+import { PaymentError } from '../services/paymentService';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import { verifyToken } from '../utils/auth';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 let adminClients: Response[] = [];
 
+// EventSource no permite enviar headers, así que el token viaja en ?token=
 export const streamOrders = (req: Request, res: Response) => {
+  try {
+    const decoded = verifyToken(String(req.query.token || '')) as { role?: string };
+    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+  } catch {
+    return res.status(401).json({ error: 'Token inválido o expirado.' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -20,17 +33,27 @@ export const streamOrders = (req: Request, res: Response) => {
 export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     const usuarioId = req.user?.id;
-    const pedido = await orderService.createOrder(req.body, usuarioId);
+    if (!usuarioId) return res.status(401).json({ error: 'Usuario no autenticado' });
+
+    // Nombre y email salen de la BD, no del body (el cliente no puede falsearlos)
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+    if (!usuario) return res.status(401).json({ error: 'Usuario no encontrado' });
+
+    const { pedido, pago } = await orderService.createOrder(req.body, usuarioId, usuario);
 
     adminClients.forEach(client => {
       client.write(`data: ${JSON.stringify(pedido)}\n\n`);
     });
 
     res.status(201).json({
-      message: 'Pedido creado exitosamente',
+      message: pago.estado === 'Aprobado' ? 'Pago aprobado y pedido creado' : 'Pedido creado, pendiente de pago',
       pedido,
+      pago: { estado: pago.estado, transaccionId: pago.transaccionId, detalle: pago.detalle },
     });
   } catch (error) {
+    if (error instanceof PaymentError || error instanceof OrderError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error('Error al crear pedido:', error);
     res.status(500).json({ error: 'Error interno del servidor al crear el pedido' });
   }
@@ -71,6 +94,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     res.json(pedido);
   } catch (error) {
+    if (error instanceof OrderError) return res.status(error.status).json({ error: error.message });
     res.status(500).json({ error: 'Error al actualizar estado del pedido' });
   }
 };
