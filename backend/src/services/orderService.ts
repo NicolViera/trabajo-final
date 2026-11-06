@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { paymentService, PaymentError, PAYMENT_METHODS } from './paymentService';
+import { LOW_STOCK_THRESHOLD } from '../config';
 
 const prisma = new PrismaClient();
 
@@ -59,6 +60,7 @@ export const orderService = {
 
       let total = 0;
       const detalles = [];
+      const alertasStock: { id: number; titulo: string; stock: number }[] = [];
       for (const p of productos) {
         const cantidad = qtyById.get(p.id)!;
         // updateMany condicional = descuento atómico; si no alcanza, count = 0
@@ -71,6 +73,12 @@ export const orderService = {
         }
         total += p.precio * cantidad;
         detalles.push({ productoId: p.id, cantidad, precio: p.precio });
+
+        // Stock que queda después de esta venta (p.stock es el valor antes de descontar)
+        const stockRestante = p.stock - cantidad;
+        if (stockRestante <= LOW_STOCK_THRESHOLD) {
+          alertasStock.push({ id: p.id, titulo: p.titulo, stock: stockRestante });
+        }
       }
       total = Math.round(total * 100) / 100;
 
@@ -93,7 +101,7 @@ export const orderService = {
         include: { detalles: true },
       });
 
-      return { pedido, pago };
+      return { pedido, pago, alertasStock };
     });
   },
 

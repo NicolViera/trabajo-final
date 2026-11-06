@@ -39,10 +39,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
     if (!usuario) return res.status(401).json({ error: 'Usuario no encontrado' });
 
-    const { pedido, pago } = await orderService.createOrder(req.body, usuarioId, usuario);
+    const { pedido, pago, alertasStock } = await orderService.createOrder(req.body, usuarioId, usuario);
+
+    if (alertasStock.length > 0) {
+      console.warn('⚠️  Stock bajo:', alertasStock.map((a: { titulo: string; stock: number }) => `${a.titulo} (${a.stock})`).join(', '));
+    }
 
     adminClients.forEach(client => {
-      client.write(`data: ${JSON.stringify(pedido)}\n\n`);
+      client.write(`data: ${JSON.stringify({ ...pedido, alertasStock })}\n\n`);
     });
 
     res.status(201).json({

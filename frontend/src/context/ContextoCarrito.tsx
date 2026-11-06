@@ -28,7 +28,20 @@ export const CartContext = createContext<CartContextType>({
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // No deja superar el stock disponible (igual, el servidor lo vuelve a validar al pagar)
   const addToCart = (product: any) => {
+    const stock = Number(product.stock ?? Infinity);
+    const enCarrito = cart.find(item => item.id === product.id)?.cantidad ?? 0;
+
+    if (enCarrito + 1 > stock) {
+      alert(
+        stock <= 0
+          ? `"${product.titulo}" está sin stock.`
+          : `No hay más stock de "${product.titulo}": quedan ${stock} unidad${stock === 1 ? '' : 'es'} y ya las tenés en el carrito.`
+      );
+      return;
+    }
+
     setCart((prevCart) => {
       const existing = prevCart.find(item => item.id === product.id);
       if (existing) {

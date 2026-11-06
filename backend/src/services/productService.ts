@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { LOW_STOCK_THRESHOLD } from '../config';
 
 const prisma = new PrismaClient();
 
@@ -6,6 +7,14 @@ export const productService = {
   getAllProducts: async () => {
     return await prisma.producto.findMany({
       include: { categoria: true },
+    });
+  },
+
+  getLowStock: async () => {
+    return await prisma.producto.findMany({
+      where: { stock: { lte: LOW_STOCK_THRESHOLD } },
+      include: { categoria: true },
+      orderBy: [{ stock: 'asc' }, { titulo: 'asc' }],
     });
   },
 

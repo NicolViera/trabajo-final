@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/ContextoAutenticacion';
+import { useLowStock } from '../hooks/useLowStock';
 
 interface ActionLog {
   id: string;
@@ -8,18 +9,9 @@ interface ActionLog {
   details: string;
 }
 
-interface Producto {
-  id: number;
-  titulo: string;
-  stock: number;
-}
-
-interface ProfileViewProps {
-  products: Producto[];
-}
-
-const ProfileView = ({ products }: ProfileViewProps) => {
+const ProfileView = () => {
   const { user } = useContext(AuthContext);
+  const { umbral, lowStock: lowStockProducts } = useLowStock();
   const [history, setHistory] = useState<ActionLog[]>([]);
 
   useEffect(() => {
@@ -29,8 +21,6 @@ const ProfileView = ({ products }: ProfileViewProps) => {
       setHistory(JSON.parse(saved));
     }
   }, []);
-
-  const lowStockProducts = products.filter(p => p.stock <= 5);
 
   return (
     <section id="profile-view" className="view-section">
@@ -85,6 +75,9 @@ const ProfileView = ({ products }: ProfileViewProps) => {
               <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '10px' }}></i>
               Alertas de Stock
             </h3>
+            <p style={{ color: 'var(--medium-rose)', fontSize: '0.85rem', margin: '-10px 0 15px 0' }}>
+              Se avisa cuando un producto llega a {umbral} unidades o menos.
+            </p>
             
             {lowStockProducts.length === 0 ? (
               <div style={{ background: '#ecfdf5', color: '#059669', padding: '15px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>

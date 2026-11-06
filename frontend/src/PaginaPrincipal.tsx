@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useCallback } from 'react';
 import { AuthContext } from './context/ContextoAutenticacion';
 import { CartContext } from './context/ContextoCarrito';
 import ModalLogin from './components/ModalLogin';
@@ -35,8 +35,7 @@ const LegacyFront = () => {
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
       try {
         const { data } = await api.get('/products');
         // Mapear campos del server (inglés) → frontend (español)
@@ -54,9 +53,11 @@ const LegacyFront = () => {
       } catch (err) {
         console.error('Error al cargar productos:', err);
       }
-    };
-    fetchProducts();
   }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleAddToCart = (product: Producto) => {
     addToCart(product);
@@ -214,8 +215,8 @@ const LegacyFront = () => {
         )}
 
         {view === 'stylist-view' && <EstilistaVirtual products={products} addToCart={addToCart} setView={setView} />}
-        {view === 'admin-view' && <PanelAdmin products={products} setProducts={setProducts} />}
-        {view === 'profile-view' && <VistaPerfil products={products} />}
+        {view === 'admin-view' && <PanelAdmin products={products} setProducts={setProducts} onRefresh={fetchProducts} />}
+        {view === 'profile-view' && <VistaPerfil />}
       </main>
 
       {/* ── Carrito ── */}
