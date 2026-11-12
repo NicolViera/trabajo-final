@@ -3,6 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import api from '../configuracionAPI';
+import { useLowStock } from '../hooks/useLowStock';
 
 interface Producto {
   id: number;
@@ -19,6 +20,7 @@ interface Producto {
 interface AdminPanelProps {
   products: Producto[];
   setProducts: React.Dispatch<React.SetStateAction<Producto[]>>;
+  onRefresh?: () => void;
 }
 
 // Mock sales data
@@ -59,8 +61,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
+const AdminPanel = ({ products, setProducts, onRefresh }: AdminPanelProps) => {
   const [dailyData] = useState(generateSalesData);
+  const { umbral, lowStock } = useLowStock(products);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -70,7 +73,14 @@ const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
     source.onmessage = (event) => {
       try {
         const newOrder = JSON.parse(event.data);
-        alert(`¡NUEVA VENTA REGISTRADA!\n\nCliente: ${newOrder.nombreCliente}\nMétodo: ${newOrder.metodoPago}\nTotal: $${newOrder.total.toLocaleString()}`);
+        onRefresh?.(); // el stock cambió: se recarga el inventario y las alertas
+
+        const alertas: { titulo: string; stock: number }[] = newOrder.alertasStock ?? [];
+        const avisoStock = alertas.length
+          ? `\n\n⚠️ STOCK BAJO:\n${alertas.map(a => `• ${a.titulo}: ${a.stock === 0 ? 'sin stock' : `quedan ${a.stock}`}`).join('\n')}`
+          : '';
+
+        alert(`¡NUEVA VENTA REGISTRADA!\n\nCliente: ${newOrder.nombreCliente}\nMétodo: ${newOrder.metodoPago}\nTotal: $${newOrder.total.toLocaleString()}${avisoStock}`);
       } catch (err) {
         console.error('Error parsing SSE event data:', err);
       }
@@ -79,7 +89,7 @@ const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
     return () => {
       source.close();
     };
-  }, []);
+  }, [onRefresh]);
   const [activeTab, setActiveTab] = useState<'stats' | 'inventory'>('stats');
   
   // Product Form State
@@ -241,6 +251,12 @@ const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
 
       {activeTab === 'inventory' && (
         <div style={{ marginTop: '20px' }}>
+          {lowStock.length > 0 && (
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', padding: '12px 16px', borderRadius: '8px', marginBottom: '15px' }}>
+              <strong><i className="fa-solid fa-triangle-exclamation"></i> Reponer stock ({umbral} unidades o menos):</strong>{' '}
+              {lowStock.map(p => `${p.titulo} (${p.stock})`).join(' · ')}
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
             <button className="btn btn-pink" onClick={() => handleOpenModal()}>
               <i className="fa-solid fa-plus"></i> Añadir Producto
@@ -265,7 +281,7 @@ const AdminPanel = ({ products, setProducts }: AdminPanelProps) => {
                     <td style={{ fontWeight: 600, color: '#3d262a' }}>{p.titulo}</td>
                     <td><span style={{ background: '#fff0f3', color: '#c62a47', padding: '3px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>{p.categoria?.nombre || 'N/A'}</span></td>
                     <td>
-                      <span style={{ color: p.stock <= 5 ? '#ef4444' : '#22c55e', fontWeight: 'bold' }}>{p.stock}</span>
+                      <span style={{ color: p.stock <= umbral ? '#ef4444' : '#22c55e', fontWeight: 'bold' }}>{p.stock}</span>
                     </td>
                     <td style={{ fontWeight: 700, color: '#ff7597', fontSize: '1.05rem' }}>${p.precio.toLocaleString()}</td>
                     <td>

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { productService } from '../services/productService';
+import { LOW_STOCK_THRESHOLD } from '../config';
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
@@ -7,6 +8,15 @@ export const getProducts = async (req: Request, res: Response) => {
     res.json(productos);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener productos' });
+  }
+};
+
+export const getLowStock = async (req: Request, res: Response) => {
+  try {
+    const productos = await productService.getLowStock();
+    res.json({ umbral: LOW_STOCK_THRESHOLD, productos });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener las alertas de stock' });
   }
 };
 
